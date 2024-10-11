@@ -1,17 +1,19 @@
-import time
-import random
+from flask import Flask, jsonify, request
+import os
 import numpy as np
-
+import time
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
 from data.test_generator import TestGenerator
+from features.feature_extractor import FeatureExtractor
 from pre_processing.pre_processor import PreProcessor
 from segmentation.line_segmentor import LineSegmentor
-from features.feature_extractor import FeatureExtractor
-from utils.utils import *
 from utils.constants import *
+from utils.utils import *
 
+# Create Flask's app
+app = Flask(__name__)
 
 #
 # Variables
@@ -19,6 +21,10 @@ from utils.constants import *
 result_file = None
 total_time = 0.0
 testcase_time = []
+results = []
+
+UPLOAD_FOLDER = './data/testcases/001/'
+
 
 # =====================================================================
 #
@@ -27,9 +33,10 @@ testcase_time = []
 # =====================================================================
 
 
-def run():
+def run_pipeline():
     # Set global variables
-    global result_file, total_time, testcase_time
+    global result_file, total_time, testcase_time, results
+    results = []
 
     # Start timer
     start = time.time()
@@ -60,9 +67,40 @@ def run():
 
     # End timer
     total_time = (time.time() - start)
+    return results
+
+
+@app.route('/files', methods=['POST'])
+def run():
+    if os.path.exists(UPLOAD_FOLDER) and os.listdir(UPLOAD_FOLDER):
+        shutil.rmtree(UPLOAD_FOLDER)
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    writers_string = request.form.get('writers')
+    writers = [writer.strip() for writer in writers_string.split(',')] if writers_string else []
+
+    for writer in writers:
+        writer_dir = os.path.join(UPLOAD_FOLDER, writer)
+        os.makedirs(writer_dir, exist_ok=True)
+
+        training_files = [f for f in request.files if f.startswith(writer)]
+        for idx, training_file in enumerate(training_files):
+            file = request.files[training_file]
+            if file:
+                file.save(os.path.join(writer_dir, f'training_image_{idx + 1}.png'))
+
+    test_files = [f for f in request.files if f.startswith('test')]
+    for idx, test_file in enumerate(test_files):
+        file = request.files[test_file]
+        if file:
+            file.save(os.path.join(UPLOAD_FOLDER, f'test_image_{idx + 1}.png'))
+    results = run_pipeline()
+
+    return jsonify({"message": "Files uploaded successfully", "results": results}), 200
 
 
 def process_testcase(path):
+    global results
     features, labels = [], []
 
     # Loop over every writer in the current test iteration
@@ -90,6 +128,8 @@ def process_testcase(path):
 
             # Write result
             result_file.write(str(r) + '\n')
+
+            results.append(str(r))
 
             print('    Classifying test image \'%s\' as writer \'%s\'' % (path + filename, r))
         break
@@ -209,7 +249,9 @@ if GENERATE_TEST_ITERATIONS:
 #
 # =====================================================================
 
-run()
+# run_pipeline()
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
 print('-------------------------------')
 print('Total elapsed time: %.2f seconds' % total_time)
 print('Average testcase time: %.2f seconds' % np.average(testcase_time))

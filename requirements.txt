@@ -1,5 +1,6 @@
 opencv-python>=3.0
 numpy
 scikit-image
-sklearn
+scikit-learn
 matplotlib
+flask
