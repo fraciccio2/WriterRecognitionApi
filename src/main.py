@@ -2,8 +2,8 @@ from flask import Flask, jsonify, request
 import os
 import numpy as np
 import time
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
+from collections import Counter
 
 from data.test_generator import TestGenerator
 from features.feature_extractor import FeatureExtractor
@@ -126,14 +126,16 @@ def process_testcase(path):
             # Get the most likely writer
             p = classifier.predict_proba(x)
             p = np.sum(p, axis=0)
-            max_prob = np.max(p)
+            predict = classifier.predict(x)
+            f = Counter(predict).most_common(1)[0][1]
+            print(f)
             r = classifier.classes_[np.argmax(p)]
 
             # Write result
             result_file.write(str(r) + '\n')
 
             results.append(str(r))
-            accuracies.append(max_prob)
+            accuracies.append(f/len(predict))
 
             print('    Classifying test image \'%s\' as writer \'%s\'' % (path + filename, r))
         break
