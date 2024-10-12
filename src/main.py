@@ -22,6 +22,7 @@ result_file = None
 total_time = 0.0
 testcase_time = []
 results = []
+accuracies = []
 
 UPLOAD_FOLDER = './data/testcases/001/'
 
@@ -96,7 +97,7 @@ def run():
             file.save(os.path.join(UPLOAD_FOLDER, f'test_image_{idx + 1}.png'))
     results = run_pipeline()
 
-    return jsonify({"message": "Files uploaded successfully", "results": results}), 200
+    return jsonify({"message": "Processed files successfully", "results": results, "accuracies": accuracies}), 200
 
 
 def process_testcase(path):
@@ -128,6 +129,9 @@ def process_testcase(path):
 
             # Write result
             result_file.write(str(r) + '\n')
+
+            # Write accuracy
+            accuracies.append(max(p))
 
             results.append(str(r))
 
@@ -177,64 +181,6 @@ def get_features(path):
 
 # =====================================================================
 #
-# Old unused functions
-#
-# =====================================================================
-
-
-def process_testcase_old(path):
-    features, labels, r = [], [], 0
-
-    # Loop over every writer in the current testcase
-    # Should be 3 writers
-    for root, dirs, files in os.walk(path):
-        for d in dirs:
-            print('    Processing writer', d, '...')
-            x, y = process_writer_old(path + d + '/', d)
-            features.extend(x)
-            labels.extend(y)
-
-    # Train the KNN model
-    classifier = KNeighborsClassifier(1)
-    classifier.fit(features, labels)
-
-    # Loop over test images in the current test iteration
-    # Should be 1 test image
-    for root, dirs, files in os.walk(path):
-        for filename in files:
-            f = get_writing_features(path + filename)
-            r = classifier.predict([f])[0]
-            print('    Classifying test image \'%s\' as writer \'%s\'' % (path + filename, r))
-            break
-        break
-
-    # Return classification
-    return r
-
-
-def process_writer_old(path, writer_id):
-    x, y = [], []
-
-    for root, dirs, files in os.walk(path):
-        for filename in files:
-            x.append(get_writing_features(path + filename))
-            y.append(writer_id)
-
-    return x, y
-
-
-def get_writing_features(image_path):
-    # Pre-processing
-    gray_img = cv.imread(image_path, cv.IMREAD_GRAYSCALE)
-    gray_img, bin_img = PreProcessor.process(gray_img)
-    gray_lines, bin_lines = LineSegmentor(gray_img, bin_img).segment()
-
-    # Feature extraction
-    return FeatureExtractor(gray_lines, bin_lines).extract()
-
-
-# =====================================================================
-#
 # Generate test iterations from IAM data set
 #
 # =====================================================================
@@ -252,12 +198,6 @@ if GENERATE_TEST_ITERATIONS:
 # run_pipeline()
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-print('-------------------------------')
-print('Total elapsed time: %.2f seconds' % total_time)
-print('Average testcase time: %.2f seconds' % np.average(testcase_time))
-print('Classification accuracy: %d/%d' % calculate_accuracy())
-print('-------------------------------')
-print()
 
 if DEBUG_SAVE_WRONG_TESTCASES:
     print_wrong_testcases()
