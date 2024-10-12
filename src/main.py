@@ -36,8 +36,9 @@ UPLOAD_FOLDER = './data/testcases/001/'
 
 def run_pipeline():
     # Set global variables
-    global result_file, total_time, testcase_time, results
+    global result_file, total_time, testcase_time, results, accuracies
     results = []
+    accuracies = []
 
     # Start timer
     start = time.time()
@@ -68,7 +69,7 @@ def run_pipeline():
 
     # End timer
     total_time = (time.time() - start)
-    return results
+    return results, accuracies
 
 
 @app.route('/files', methods=['POST'])
@@ -95,13 +96,13 @@ def run():
         file = request.files[test_file]
         if file:
             file.save(os.path.join(UPLOAD_FOLDER, f'test_image_{idx + 1}.png'))
-    results = run_pipeline()
+    results, accuracies = run_pipeline()
 
     return jsonify({"message": "Processed files successfully", "results": results, "accuracies": accuracies}), 200
 
 
 def process_testcase(path):
-    global results
+    global results, accuracies
     features, labels = [], []
 
     # Loop over every writer in the current test iteration
@@ -125,15 +126,14 @@ def process_testcase(path):
             # Get the most likely writer
             p = classifier.predict_proba(x)
             p = np.sum(p, axis=0)
+            max_prob = np.max(p)
             r = classifier.classes_[np.argmax(p)]
 
             # Write result
             result_file.write(str(r) + '\n')
 
-            # Write accuracy
-            accuracies.append(max(p))
-
             results.append(str(r))
+            accuracies.append(max_prob)
 
             print('    Classifying test image \'%s\' as writer \'%s\'' % (path + filename, r))
         break
