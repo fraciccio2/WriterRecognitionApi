@@ -89,13 +89,15 @@ def run():
         for idx, training_file in enumerate(training_files):
             file = request.files[training_file]
             if file:
-                file.save(os.path.join(writer_dir, f'training_image_{idx + 1}.png'))
+                original_extension = os.path.splitext(file.filename)[1]
+                file.save(os.path.join(writer_dir, f'training_image_{idx + 1}{original_extension}'))
 
     test_files = [f for f in request.files if f.startswith('test')]
     for idx, test_file in enumerate(test_files):
         file = request.files[test_file]
         if file:
-            file.save(os.path.join(UPLOAD_FOLDER, f'test_image_{idx + 1}.png'))
+            original_extension = os.path.splitext(file.filename)[1]
+            file.save(os.path.join(UPLOAD_FOLDER, f'test_image_{idx + 1}{original_extension}'))
     results, accuracies = run_pipeline()
 
     return jsonify({"message": "Processed files successfully", "results": results, "accuracies": accuracies}), 200
@@ -128,7 +130,6 @@ def process_testcase(path):
             p = np.sum(p, axis=0)
             predict = classifier.predict(x)
             f = Counter(predict).most_common(1)[0][1]
-            print(f)
             r = classifier.classes_[np.argmax(p)]
 
             # Write result
