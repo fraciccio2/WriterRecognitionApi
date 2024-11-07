@@ -149,9 +149,22 @@ def get_writer_features(path, writer_id):
     # Read and append all lines of the writer
     for root, dirs, files in os.walk(path):
         for filename in files:
-            gray_img = cv.imread(path + filename, cv.IMREAD_GRAYSCALE)
+            full_path = os.path.join(path, filename)
+            gray_img = cv.imread(full_path, cv.IMREAD_GRAYSCALE)
+            if gray_img is None or gray_img.size <= 0:
+                print(f"Errore nel caricamento dell'immagine: {filename}")
+            gray_img2 = gray_img.copy()
             gray_img, bin_img = PreProcessor.process(gray_img)
-            gray_lines, bin_lines = LineSegmentor(gray_img, bin_img).segment()
+            if bin_img is None or bin_img.size <= 0:
+                print(f"Errore: l'immagine binarizzata di {filename} è None o vuota!")
+                bin_img = cv.adaptiveThreshold(
+                    gray_img2, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2
+                )
+                print(f"Adaptive Threshold applied for {filename}")
+                gray_lines, bin_lines = LineSegmentor(gray_img2, bin_img).segment()
+            else:
+                print(f"Original bin_img available for {filename}")
+                gray_lines, bin_lines = LineSegmentor(gray_img, bin_img).segment()
             total_gray_lines.extend(gray_lines)
             total_bin_lines.extend(bin_lines)
         break
@@ -169,8 +182,18 @@ def get_writer_features(path, writer_id):
 def get_features(path):
     # Read and pre-process the image
     gray_img = cv.imread(path, cv.IMREAD_GRAYSCALE)
+    if gray_img is None or gray_img.size <= 0:
+        print(f"Errore nel caricamento dell'immagine: {path}")
+    gray_img2 = gray_img.copy()
     gray_img, bin_img = PreProcessor.process(gray_img)
-    gray_lines, bin_lines = LineSegmentor(gray_img, bin_img).segment()
+    if bin_img is None or bin_img.size <= 0:
+        print(f"Errore: l'immagine binarizzata di {path} è None o vuota!")
+        bin_img = cv.adaptiveThreshold(gray_img2, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
+        print(f"Adaptive Threshold applied for {path}")
+        gray_lines, bin_lines = LineSegmentor(gray_img2, bin_img).segment()
+    else:
+        print(f"Original bin_img available for {path}")
+        gray_lines, bin_lines = LineSegmentor(gray_img, bin_img).segment()
 
     # Extract features of every line separately
     x = []
